@@ -1,0 +1,20 @@
+# API Keys (DO NOT COMMIT THIS FILE)
+.env
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Logs and Media (Runtime files)
+*.log
+*.mp3
+*.wav
+*.img
+
+# Whisper Models (Downloads)
+model/

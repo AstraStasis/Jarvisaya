@@ -10,6 +10,7 @@ is_hidden = False
 def set_state(state: str):
     global current_state
     current_state = state
+    
 
 def get_state() -> str:
     return current_state

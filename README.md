@@ -1,4 +1,5 @@
-# Jarvis: Autonomous AI Assistant
+# [THIS PROJECT WAS MADE FOR FUN AND STILL MAKES A LOT OF MISTAKES DUE TO LIMITED BUDGET]
+# Jarvis: Autonomous AI Assistant 
 
 An advanced, fully autonomous AI assistant powered by a cutting-edge dual-model architecture: **GPT-Live-1** for real-time voice sessions and **GPT-4o** for delegated complex reasoning and computer use tools. Jarvis can see your screen, hear your voice, and seamlessly control your computer by autonomously identifying and interacting with UI elements in real-time.
 

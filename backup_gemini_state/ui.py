@@ -131,7 +131,7 @@ def run_ui():
     # Particle system: list of dicts {x, y, angle, dist, speed, size, alpha}
     particles = []
 
-    import audio_stream # For RMS volume
+    import tts # For RMS volume
 
     while True:
         dt = clock.tick(60) / 1000.0
@@ -148,23 +148,21 @@ def run_ui():
         state = get_state()
 
         # --- Visibility fade ---
-        target_vis = 0.0 if is_hidden else 1.0
+        target_vis = 0.0 if (state == 'sleep' or is_hidden) else 1.0
         visibility = _lerp(visibility, target_vis, 0.08)
+        if state == 'sleep' and visibility < 0.04:
+            pygame.quit()
+            return
 
         # --- Smooth color transition ---
         tgt_col = STATE_COLORS.get(state, STATE_COLORS['idle'])
-        if getattr(audio_stream, '_group_mode', False):
-            if state == 'idle': tgt_col = (130, 20, 200)
-            elif state == 'listening': tgt_col = (200, 50, 255)
-            elif state == 'speaking': tgt_col = (230, 150, 255)
-            
         cur_color[0] = int(_lerp(cur_color[0], tgt_col[0], 0.04))
         cur_color[1] = int(_lerp(cur_color[1], tgt_col[1], 0.04))
         cur_color[2] = int(_lerp(cur_color[2], tgt_col[2], 0.04))
         col = tuple(cur_color)
 
         # --- Audio-Reactive Pulse ---
-        vol = audio_stream.get_current_volume()
+        vol = tts.get_current_volume()
         
         if state == 'booting':
             progress = min(1.0, t / 2.5)
@@ -172,8 +170,6 @@ def run_ui():
             cur_radius = (BASE_R + pulse) * visibility
         elif state == 'idle':
             pulse = math.sin(t * 1.8) * 6
-        elif state == 'sleep':
-            pulse = math.sin(t * 1.5) * 4
         elif state == 'listening':
             pulse = math.sin(t * 4.5) * 18 + math.sin(t * 11.3) * 5
         elif state == 'thinking':
@@ -310,9 +306,6 @@ def run_ui():
             target_scale = 1.0
             tx = screen_w / 2 - WIDTH / 2
             ty = screen_h / 2 - HEIGHT / 2
-        elif state == 'sleep':
-            target_scale = 0.0
-            tx, ty = cur_x, cur_y
         else:
             target_scale = 0.55
             # Position near the middle-right edge of the screen
@@ -321,14 +314,17 @@ def run_ui():
             tx = screen_w - WIDTH + padding_right - 40
             ty = screen_h / 2 - HEIGHT / 2
 
+        # Ignore target if asleep
+        if state == 'sleep':
+            tx, ty = cur_x, cur_y
+
         current_scale = _lerp(current_scale, target_scale, 0.05)
 
         if current_scale < 0.99:
             scaled_w = int(WIDTH * current_scale)
             scaled_h = int(HEIGHT * current_scale)
-            if scaled_w > 1 and scaled_h > 1:
-                scaled_surf = pygame.transform.smoothscale(surf, (scaled_w, scaled_h))
-                screen.blit(scaled_surf, (WIDTH//2 - scaled_w//2, HEIGHT//2 - scaled_h//2))
+            scaled_surf = pygame.transform.smoothscale(surf, (scaled_w, scaled_h))
+            screen.blit(scaled_surf, (WIDTH//2 - scaled_w//2, HEIGHT//2 - scaled_h//2))
         else:
             screen.blit(surf, (0, 0))
 

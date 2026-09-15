@@ -8,7 +8,7 @@ import numpy as np
 import random
 import time
 
-VOICE = "en-GB-ThomasNeural"  # Overridden by line 35 if ElevenLabs not set
+VOICE = "en-GB-ThomasNeural"
 
 _loop = asyncio.new_event_loop()
 _loop_thread = threading.Thread(target=_loop.run_forever, daemon=True)

@@ -1,0 +1,7 @@
+SpeechRecognition
+pyaudio
+google-genai
+python-dotenv
+piper-tts
+Flask
+pyOpenSSL

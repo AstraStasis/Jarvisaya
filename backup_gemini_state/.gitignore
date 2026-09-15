@@ -16,11 +16,5 @@ __pycache__/
 *.wav
 *.img
 
-# Voice Models (Downloads)
+# Whisper Models (Downloads)
 model/
-vosk-model-*/
-*.onnx
-
-# State and Memory (Runtime)
-memory.json
-reminders.json

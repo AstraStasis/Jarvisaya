@@ -1,7 +1,15 @@
 SpeechRecognition
-pyaudio
+sounddevice
+numpy
 google-genai
 python-dotenv
 piper-tts
 Flask
 pyOpenSSL
+websockets
+pyautogui
+psutil
+requests
+beautifulsoup4
+soundcard
+scipy

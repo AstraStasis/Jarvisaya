@@ -1,16 +1,20 @@
 import urllib.request
+import zipfile
 import os
 
-print("Downloading High-Quality Jarvis Piper model...")
-onnx_url = "https://huggingface.co/jgkawell/jarvis/resolve/main/en/en_GB/jarvis/high/jarvis-high.onnx"
-json_url = "https://huggingface.co/jgkawell/jarvis/resolve/main/en/en_GB/jarvis/high/jarvis-high.onnx.json"
+model_url = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+zip_path = "vosk-model-small-en-us-0.15.zip"
 
-os.makedirs("model", exist_ok=True)
+print(f"Downloading {model_url}...")
+urllib.request.urlretrieve(model_url, zip_path)
+print("Download complete. Extracting...")
 
-print("Downloading jarvis-high.onnx (this is larger, may take a minute)...")
-urllib.request.urlretrieve(onnx_url, "model/jarvis.onnx")
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall(".")
 
-print("Downloading jarvis-high.onnx.json...")
-urllib.request.urlretrieve(json_url, "model/jarvis.onnx.json")
-
-print("Done! High quality model installed.")
+# Rename extracted folder to 'model' for easier access
+if os.path.exists("vosk-model-small-en-us-0.15"):
+    os.rename("vosk-model-small-en-us-0.15", "model")
+    
+os.remove(zip_path)
+print("Model ready in 'model' directory.")

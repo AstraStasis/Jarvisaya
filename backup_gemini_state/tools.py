@@ -5,8 +5,6 @@ import ctypes
 # ---------------------------------------------------------------------------
 # App registry
 # ---------------------------------------------------------------------------
-from memory import remember_fact, forget_fact
-
 WINDOWS_APPS = {
     "notepad": "notepad.exe",
     "calculator": "calc.exe",
@@ -134,57 +132,6 @@ def close_application(app_name: str) -> str:
         return f"Failed to close {app_name}: {e}"
 
 
-def switch_to_app(app_name: str) -> str:
-    """
-    Switches to an already open application window by name and brings it to the foreground.
-    Use this to pull up minimized or hidden applications.
-    Args:
-        app_name: The name of the application (e.g. 'Opera GX', 'Chrome', 'Discord').
-    """
-    import ctypes
-    import re
-    
-    try:
-        EnumWindows = ctypes.windll.user32.EnumWindows
-        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int))
-        GetWindowText = ctypes.windll.user32.GetWindowTextW
-        GetWindowTextLength = ctypes.windll.user32.GetWindowTextLengthW
-        IsWindowVisible = ctypes.windll.user32.IsWindowVisible
-        ShowWindow = ctypes.windll.user32.ShowWindow
-        SetForegroundWindow = ctypes.windll.user32.SetForegroundWindow
-        IsIconic = ctypes.windll.user32.IsIconic
-        
-        found_hwnd = None
-        found_title = ""
-        
-        def foreach_window(hwnd, lParam):
-            nonlocal found_hwnd, found_title
-            if IsWindowVisible(hwnd):
-                length = GetWindowTextLength(hwnd)
-                if length > 0:
-                    buff = ctypes.create_unicode_buffer(length + 1)
-                    GetWindowText(hwnd, buff, length + 1)
-                    title = buff.value
-                    # Match app name
-                    if re.search(app_name, title, re.IGNORECASE):
-                        found_hwnd = hwnd
-                        found_title = title
-                        return False # stop enumerating
-            return True
-            
-        EnumWindows(EnumWindowsProc(foreach_window), 0)
-        
-        if found_hwnd:
-            if IsIconic(found_hwnd):
-                ShowWindow(found_hwnd, 9) # SW_RESTORE
-            SetForegroundWindow(found_hwnd)
-            return f"Successfully pulled up {found_title}."
-            
-        return f"Could not find an open window matching '{app_name}'."
-    except Exception as e:
-        return f"Error switching to app: {e}"
-
-
 def find_and_open_file(filename: str) -> str:
     """Searches common user directories for the file, otherwise opens a Windows Search window."""
     import os
@@ -219,79 +166,22 @@ def find_and_open_file(filename: str) -> str:
 # ---------------------------------------------------------------------------
 
 def take_screenshot() -> str | None:
-    """Takes a screenshot, analyzes it using GPT-4o-mini Vision, deletes the screenshot, and returns the text description."""
+    """Takes a screenshot and saves it to the Desktop with a timestamp. Returns None if it fails."""
     import pyautogui
     from datetime import datetime
     import traceback
-    import base64
-    import tempfile
-    import os
-    import requests
-    
     try:
+        import tempfile
         temp_dir = tempfile.gettempdir()
-        filename = f"jarvis_vision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        filename = f"jarvis_vision_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
         path = os.path.join(temp_dir, filename)
-        
-        # Take screenshot and save as compressed JPEG
         img = pyautogui.screenshot()
-        img = img.resize((img.width // 2, img.height // 2))
-        img = img.convert("RGB")
-        img.save(path, format="JPEG", quality=70)
-        
-        # Read and encode
-        with open(path, "rb") as f:
-            b64_str = base64.b64encode(f.read()).decode("utf-8")
-            
-        # Securely delete
-        try:
-            os.remove(path)
-        except:
-            pass
-            
-        # Analyze with GPT-4o-mini REST API
-        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
-        if not api_key:
-            return "Error: OPENAI_API_KEY environment variable not found."
-            
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Describe exactly what is visible on this computer screen. Be highly detailed but concise. Do not use markdown, just plain text."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{b64_str}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            "max_tokens": 300
-        }
-        
-        print("[LLM Vision] Sending screenshot to gpt-4o-mini for analysis...")
-        response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-        response.raise_for_status()
-        
-        description = response.json()["choices"][0]["message"]["content"]
-        return f"Screen analysis: {description}"
-        
+        img.save(path)
+        return path
     except Exception as e:
-        print(f"[Error] Screenshot analysis failed: {e}")
+        print(f"[Error] Screenshot failed (screen might be locked/headless): {e}")
         traceback.print_exc()
-        return f"Failed to take or analyze screenshot: {e}"
+        return None
 
 
 def set_system_volume(level: int) -> str:
@@ -585,43 +475,16 @@ def maximize_window() -> str:
     return "No window to maximize."
 
 
-def scroll_page(direction: str, speed: str = "normal", distance: str = "medium") -> str:
+def scroll_page(direction: str, amount: int = 5) -> str:
     """
-    Scrolls the current page.
+    Scrolls the current page up or down.
     Args:
         direction: 'up' or 'down'
-        speed: 'slow', 'normal', 'fast', or 'instant'
-        distance: 'little', 'medium', 'page', or 'all_the_way'
+        amount: number of scroll clicks (default 5)
     """
-    import pyautogui
-    import time
-
-    dist_map = {
-        'little': 3,
-        'medium': 15,
-        'page': 35,
-        'all_the_way': 300
-    }
-    
-    speed_map = {
-        'instant': 0.0,
-        'fast': 0.01,
-        'normal': 0.03,
-        'slow': 0.08
-    }
-
-    clicks = dist_map.get(distance.lower(), 15)
-    delay = speed_map.get(speed.lower(), 0.03)
-    sign = 1 if direction.lower() == 'up' else -1
-
-    if delay == 0.0:
-        pyautogui.scroll(clicks * sign * 100)
-    else:
-        for _ in range(clicks):
-            pyautogui.scroll(sign * 100)
-            time.sleep(delay)
-
-    return f"Scrolled {direction} {distance} at {speed} speed."
+    clicks = amount if direction.lower() == 'up' else -amount
+    pyautogui.scroll(clicks)
+    return f"Scrolled {direction}."
 
 
 # ---------------------------------------------------------------------------
@@ -796,147 +659,3 @@ def close_all_windows() -> str:
     pyautogui.hotkey('win', 'd')
     return "All windows minimized/closed."
 
-def set_reminder(text: str, delay_minutes: float) -> str:
-    """
-    Sets a reminder to trigger after a certain number of minutes.
-    Args:
-        text: The content of the reminder (e.g. 'check the oven', 'call mom').
-        delay_minutes: How many minutes from now to trigger the reminder (e.g. 1.5, 10, 60).
-    """
-    import json
-    import os
-    import time
-    
-    reminders_file = os.path.join(os.path.dirname(__file__), "reminders.json")
-    data = []
-    
-    if os.path.exists(reminders_file):
-        try:
-            with open(reminders_file, "r") as f:
-                data = json.load(f)
-        except Exception:
-            pass
-            
-    try:
-        delay_minutes = float(delay_minutes)
-    except ValueError:
-        return "Error: delay_minutes must be a number."
-        
-    trigger_time = time.time() + (delay_minutes * 60.0)
-    data.append({
-        "text": text,
-        "trigger_time": trigger_time,
-        "done": False
-    })
-    
-    with open(reminders_file, "w") as f:
-        json.dump(data, f, indent=4)
-        
-    return f"Reminder set for '{text}' in {delay_minutes} minutes."
-
-
-def execute_python_script(code: str) -> str:
-    """
-    Writes the provided Python code to a temporary file and executes it in a sandbox.
-    Returns the stdout and stderr output.
-    Args:
-        code: The raw python code to execute. Do not include markdown block formatting.
-    """
-    import tempfile
-    import subprocess
-    import os
-    import sys
-    
-    # Strip markdown if LLM accidentally included it
-    if code.startswith("```"):
-        code = "\n".join(code.split("\n")[1:-1])
-        
-    try:
-        temp_dir = tempfile.gettempdir()
-        script_path = os.path.join(temp_dir, "jarvis_sandbox.py")
-        
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(code)
-            
-        print("[Sandbox] Executing python script...")
-        result = subprocess.run(
-            [sys.executable, script_path],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-        
-        output = result.stdout
-        if result.stderr:
-            output += "\n[Errors]:\n" + result.stderr
-            
-        if not output.strip():
-            return "Script executed successfully but produced no output."
-            
-        return output[:4000]  # truncate to avoid overflowing context
-    except subprocess.TimeoutExpired:
-        return "Error: Script execution timed out after 15 seconds."
-    except Exception as e:
-        return f"Error executing script: {e}"
-
-
-def read_website_content(url: str) -> str:
-    """
-    Downloads and extracts the text content of a given URL.
-    Args:
-        url: The full URL to read (e.g. 'https://en.wikipedia.org/wiki/Python').
-    """
-    import requests
-    from bs4 import BeautifulSoup
-    
-    if not url.startswith("http"):
-        url = "https://" + url
-        
-    try:
-        print(f"[Web Scraper] Reading {url}...")
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        resp = requests.get(url, headers=headers, timeout=10)
-        resp.raise_for_status()
-        
-        soup = BeautifulSoup(resp.text, "html.parser")
-        # Remove script and style elements
-        for script in soup(["script", "style", "nav", "footer", "header"]):
-            script.decompose()
-            
-        text = soup.get_text(separator=' ', strip=True)
-        if len(text) > 5000:
-            text = text[:5000] + "... [TRUNCATED]"
-            
-        return f"Website Content for {url}:\n\n{text}"
-    except Exception as e:
-        return f"Error reading website {url}: {e}"
-
-
-def scan_active_ui() -> str:
-    """
-    Scans the currently active window and returns a numbered list of all clickable buttons, links, and text boxes.
-    Always run this first before trying to click or type into something!
-    """
-    import computer_use
-    return computer_use.scan_active_ui()
-
-def find_and_click_element(description: str) -> str:
-    """
-    Instantly finds and clicks a UI element matching the description (e.g. 'search bar' or 'play button').
-    Use this for fast clicking instead of scan_active_ui!
-    Args:
-        description: A short description or name of the button to click.
-    """
-    import computer_use
-    return computer_use.find_and_click_element(description)
-
-def find_and_type_element(description: str, text: str, submit: bool = True) -> str:
-    """
-    Instantly finds a text box matching the description and types into it.
-    Args:
-        description: A short description of the text box (e.g. 'Search field').
-        text: The text to type.
-        submit: Whether to press Enter after typing.
-    """
-    import computer_use
-    return computer_use.find_and_type_element(description, text, submit)
